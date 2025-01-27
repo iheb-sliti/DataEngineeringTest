@@ -186,7 +186,7 @@
 				"typeProperties": {
 					"variableName": "apijsondata",
 					"value": {
-						"value": "@replace(activity('Lookup Activity').output.firstRow.api_data, '\\\\\"', '\"')\n",
+						"value": "@replace(activity('Lookup1').output.firstRow.api_data, '\\\\\"', '\"')\n",
 						"type": "Expression"
 					}
 				}
@@ -225,7 +225,7 @@
 			}
 		},
 		"annotations": [],
-		"lastPublishTime": "2025-01-27T20:54:46Z"
+		"lastPublishTime": "2025-01-27T21:43:59Z"
 	},
 	"type": "Microsoft.DataFactory/factories/pipelines"
 }
