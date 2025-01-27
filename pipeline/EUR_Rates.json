@@ -1,0 +1,231 @@
+{
+	"name": "EUR_Rates",
+	"properties": {
+		"activities": [
+			{
+				"name": "call_usd_rates_pipeline",
+				"type": "ExecutePipeline",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
+				"dependsOn": [],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "USD_Rates",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
+			},
+			{
+				"name": "call stored procedure",
+				"type": "SqlServerStoredProcedure",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
+				"dependsOn": [
+					{
+						"activity": "call_usd_rates_pipeline",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[dbo].[create_eur_table1]"
+				},
+				"linkedServiceName": {
+					"referenceName": "AzureSqlDatabase1",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "create stored procedure",
+				"type": "Script",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "AzureSqlDatabase1",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": "CREATE PROCEDURE sp_transform_usd_to_eur\n    @api_data NVARCHAR(MAX),  -- JSON object from the Lookup Activity\n    @upload_dt DATETIME       -- Timestamp from the Lookup Activity\nAS\nBEGIN\n    INSERT INTO source_data_EUR (upload_dt, Currency, rate)\n    SELECT \n        @upload_dt AS upload_dt,                          -- Use the timestamp passed as a parameter\n        JSON_VALUE(key_val.[key], '$') AS Currency,       -- Currency key (e.g., USD, EUR)\n        CAST(JSON_VALUE(key_val.[value], '$') AS FLOAT)   -- Extract USD rate\n        / CAST(JSON_VALUE(@api_data, '$.EUR') AS FLOAT)   -- Divide by EUR rate\n        AS rate                                           -- EUR-based rate\n    FROM \n        OPENJSON(@api_data) AS key_val;                   -- Parse JSON into key-value pairs\nEND;"
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			},
+			{
+				"name": "Script1",
+				"type": "Script",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "AzureSqlDatabase1",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": "CREATE PROCEDURE create_view_eur_rates AS\nBEGIN\nCREATE VIEW exchange_rates AS\nSELECT\n    usd.upload_dt AS collection_dt_timestamp,\n    'USD' AS base,\n    key AS currency,\n    CAST(value AS NUMERIC(10, 4)) AS rate,\n    CASE\n        WHEN h.event_date IS NOT NULL THEN h.holiday_description\n        ELSE NULL\n    END AS is_holiday\nFROM\n    source_data_USD usd\n    CROSS JOIN LATERAL json_each_text(usd.api_data) -- Exploding JSON\n    LEFT JOIN be_holidays h ON h.event_date = CAST(usd.upload_dt AS DATE)\n\nUNION ALL\n\nSELECT\n    eur.upload_dt AS collection_dt_timestamp,\n    'EUR' AS base,\n    eur.currency,\n    eur.rate,\n    CASE\n        WHEN h.event_date IS NOT NULL THEN h.holiday_description\n        ELSE NULL\n    END AS is_holiday\nFROM\n    source_data_EUR eur\n    LEFT JOIN be_holidays h ON h.event_date = CAST(eur.upload_dt AS DATE);\nEND;"
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			},
+			{
+				"name": "Lookup1",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": "SELECT TOP 1 api_data, upload_dt\nFROM source_data_USD\nORDER BY upload_dt DESC;",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "AzureSqlTable1",
+						"type": "DatasetReference"
+					}
+				}
+			},
+			{
+				"name": "Stored procedure1",
+				"type": "SqlServerStoredProcedure",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
+				"dependsOn": [
+					{
+						"activity": "create stored procedure",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[dbo].[sp_transform_usd_to_eur]",
+					"storedProcedureParameters": {
+						"api_data": {
+							"type": "String"
+						},
+						"upload_dt": {
+							"type": "Datetime"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "AzureSqlDatabase1",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "Set variable1",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Lookup1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "apijsondata",
+					"value": {
+						"value": "@replace(activity('Lookup Activity').output.firstRow.api_data, '\\\\\"', '\"')\n",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Set variable2",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Set variable1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "test",
+					"value": {
+						"value": "@substring(variables('apijsondata'), 1, add(length(variables('apijsondata')), -2))",
+						"type": "Expression"
+					}
+				}
+			}
+		],
+		"variables": {
+			"apijsondata": {
+				"type": "String"
+			},
+			"test": {
+				"type": "String"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2025-01-27T20:54:46Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

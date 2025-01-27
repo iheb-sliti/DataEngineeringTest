@@ -1,0 +1,13 @@
+{
+	"name": "holidayapi",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "holidayapi",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "RestResource",
+		"schema": []
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}
