@@ -1,0 +1,9 @@
+{
+	"name": "EtlDataFactoryPoc1",
+	"location": "francecentral",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "25be5f57-e112-4493-a8c9-cc22784a80c1",
+		"tenantId": "b3b3123d-29e1-4542-bdf4-086b2a745c67"
+	}
+}
