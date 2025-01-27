@@ -1,0 +1,36 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"value": "EtlDataFactoryPoc1"
+		},
+		"AzureSqlDatabase1_password": {
+			"value": ""
+		},
+		"blobdata_connectionString": {
+			"value": ""
+		},
+		"AzureSqlDatabase1_properties_typeProperties_server": {
+			"value": "dataengineertestdb.database.windows.net"
+		},
+		"AzureSqlDatabase1_properties_typeProperties_database": {
+			"value": "data_engineer_test_db"
+		},
+		"AzureSqlDatabase1_properties_typeProperties_userName": {
+			"value": "admin_user"
+		},
+		"RestService1_properties_typeProperties_url": {
+			"value": "https://open.er-api.com/v6/latest/USD"
+		},
+		"holidayapi_properties_typeProperties_url": {
+			"value": "https://openholidaysapi.org/PublicHolidays?countryIsoCode=BE&languageIsoCode=EN&validFrom=2023-01-01&validTo=2023-12-31"
+		},
+		"containerUri": {
+			"value": ""
+		},
+		"containerSasToken": {
+			"value": ""
+		}
+	}
+}
