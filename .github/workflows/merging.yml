@@ -27,10 +27,14 @@ jobs:
         export ARM_CLIENT_SECRET=$(jq -r '.clientSecret' azure-credentials.json)
         export ARM_SUBSCRIPTION_ID=$(jq -r '.subscriptionId' azure-credentials.json)
         export ARM_TENANT_ID=$(jq -r '.tenantId' azure-credentials.json)
+        echo $ARM_TENANT_ID
 
     - name: Login to Azure
       run: |
-        az login --service-principal --username=$ARM_CLIENT_ID --password=$ARM_CLIENT_SECRET --tenant=$ARM_TENANT_ID
+        az login --service-principal \
+        --username=$ARM_CLIENT_ID \
+        --password=$ARM_CLIENT_SECRET \
+        --tenant=$ARM_TENANT_ID
           
 
     - name: Deploy Data Factory ARM Templates
