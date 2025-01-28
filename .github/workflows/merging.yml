@@ -20,11 +20,6 @@ jobs:
       with:
         ref: adf_publish # Replace <BRANCH_NAME> with the branch containing the desired files
 
-    - name: Setup Azure CLI
-      uses: azure/CLI@v2
-      with:
-        azcliversion: latest
-
     - name: Export Azure Credentials
       run: |
         echo "${{ secrets.AZURE_CREDENTIALS }}" > azure-credentials.json
