@@ -22,12 +22,18 @@ jobs:
 
     - name: Export Azure Credentials
       run: |
-        echo "${{ secrets.AZURE_CREDENTIALS }}" > azure-credentials.json
-        export ARM_CLIENT_ID=$(jq -r '.clientId' azure-credentials.json)
-        export ARM_CLIENT_SECRET=$(jq -r '.clientSecret' azure-credentials.json)
-        export ARM_SUBSCRIPTION_ID=$(jq -r '.subscriptionId' azure-credentials.json)
-        export ARM_TENANT_ID=$(jq -r '.tenantId' azure-credentials.json)
-        echo $ARM_TENANT_ID
+        name: Configure Azure credentials
+      uses: azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS_JSON }}
+
+    - name: Extract credentials and set environment variables
+      run: |
+        echo "${{ secrets.AZURE_CREDENTIALS_JSON }}" > credentials.json
+        export ARM_CLIENT_ID=$(python -c 'import json,sys;obj=json.load(open("credentials.json"));print(obj["clientId"])')
+        export ARM_CLIENT_SECRET=$(python -c 'import json,sys;obj=json.load(open("credentials.json"));print(obj["clientSecret"])')
+        export ARM_TENANT_ID=$(python -c 'import json,sys;obj=json.load(open("credentials.json"));print(obj["tenantId"])')
+        export ARM_SUBSCRIPTION_ID=$(python -c 'import json,sys;obj=json.load(open("credentials.json"));print(obj["subscriptionId"])')
 
     - name: Login to Azure
       run: |
