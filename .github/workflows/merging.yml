@@ -1,0 +1,42 @@
+name: Trigger Azure Data Factory Deployment
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+
+jobs:
+  deploy-adf:
+    name: Deploy Azure Data Factory
+    runs-on: ubuntu-latest
+
+    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main'
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+      with:
+        ref: adf_publish # Replace <BRANCH_NAME> with the branch containing the desired files
+
+    - name: Setup Azure CLI
+      uses: azure/setup-cli@v2
+      with:
+        version: latest
+
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Deploy Data Factory ARM Templates
+      run: |
+        az deployment group create \
+          --resource-group POC \
+          --template-file EtlDataFactoryPoc1/ARMTemplateForFactory.json \
+          --parameters EtlDataFactoryPoc1/ARMTemplateParametersForFactory.json
+
+    - name: Confirm Deployment
+      run: |
+        echo "Deployment to Azure Data Factory completed successfully!"
