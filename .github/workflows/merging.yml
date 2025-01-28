@@ -21,7 +21,7 @@ jobs:
         ref: adf_publish # Replace <BRANCH_NAME> with the branch containing the desired files
 
     - name: Setup Azure CLI
-      uses: azure/setup-cli@v2
+      uses: azure/CLI@v2
       with:
         version: latest
 
