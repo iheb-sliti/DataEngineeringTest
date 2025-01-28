@@ -20,9 +20,7 @@ jobs:
       with:
         ref: adf_publish # Replace <BRANCH_NAME> with the branch containing the desired files
 
-    - name: Export Azure Credentials
-      run: |
-        name: Configure Azure credentials
+    - name: Configure Azure credentials
       uses: azure/login@v2
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS_JSON }}
