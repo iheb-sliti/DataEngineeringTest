@@ -3,7 +3,7 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "create stored procedure",
+				"name": "create stored procedure to eur table",
 				"type": "Script",
 				"dependsOn": [
 					{
@@ -61,11 +61,11 @@
 				}
 			},
 			{
-				"name": "Stored procedure1",
+				"name": "insert data in eur table",
 				"type": "SqlServerStoredProcedure",
 				"dependsOn": [
 					{
-						"activity": "create stored procedure",
+						"activity": "create stored procedure to eur table",
 						"dependencyConditions": [
 							"Succeeded"
 						]
