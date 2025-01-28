@@ -23,7 +23,7 @@ jobs:
     - name: Setup Azure CLI
       uses: azure/CLI@v2
       with:
-        version: latest
+        azcliversion: latest
 
     - name: Export Azure Credentials
       run: |
