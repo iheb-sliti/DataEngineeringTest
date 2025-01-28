@@ -87,7 +87,10 @@
 							"type": "String"
 						},
 						"upload_dt": {
-							"value": "@activity('Lookup1').output.firstRow.upload_dt",
+							"value": {
+								"value": "@activity('Get USD rates data').output.firstRow.upload_dt",
+								"type": "Expression"
+							},
 							"type": "Datetime"
 						}
 					}
