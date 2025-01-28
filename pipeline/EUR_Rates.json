@@ -29,7 +29,7 @@
 					"scripts": [
 						{
 							"type": "Query",
-							"text": "CREATE PROCEDURE sp_transform_usd_to_eur8\n    @api_data NVARCHAR(MAX), \n    @upload_dt DATETIME      \nAS\nBEGIN\n\n    IF ISJSON(@api_data) = 1\n    BEGIN\n        PRINT 'Valid JSON';\n\n        DECLARE @usd_rate FLOAT = JSON_VALUE(@api_data, '$.USD');\n        DECLARE @eur_rate FLOAT = JSON_VALUE(@api_data, '$.EUR');\n\n        PRINT 'USD Rate: ' + CAST(@usd_rate AS NVARCHAR(50));\n        PRINT 'EUR Rate: ' + CAST(@eur_rate AS NVARCHAR(50));\n\n        INSERT INTO source_data_EUR (upload_dt, Currency, rate)\n        SELECT \n            @upload_dt AS upload_dt,\n            [key] AS Currency,                       \n            CAST([value] AS FLOAT) / @eur_rate AS rate \n        FROM OPENJSON(@api_data)                   \n        WHERE [key] <> 'EUR';                       \n    ELSE\n    BEGIN\n        THROW 50000, 'Invalid JSON format in api_data.', 1;\n    END;\nEND;\n"
+							"text": "CREATE PROCEDURE sp_transform_usd_to_eur0\n    @api_data NVARCHAR(MAX),  \n    @upload_dt DATETIME       \nAS\nBEGIN\n    \n    -- Check if JSON is valid\n    IF ISJSON(@api_data) = 1\n    BEGIN\n        PRINT 'Valid JSON';\n\n        DECLARE @eur_rate FLOAT = JSON_VALUE(@api_data, '$.EUR');\n        PRINT 'EUR Rate: ' + CAST(@eur_rate AS NVARCHAR(50));\n\n        INSERT INTO source_data_EUR (upload_dt, Currency, rate)\n        SELECT \n            @upload_dt AS upload_dt,\n            [key] AS Currency,                                     \n            CASE \n                WHEN [key] = 'EUR' THEN 1.0000                     \n                ELSE ROUND(CAST([value] AS FLOAT) / @eur_rate, 4)  \n            END AS rate\n        FROM OPENJSON(@api_data);                                 \n    END\n    ELSE\n    BEGIN\n        THROW 50000, 'Invalid JSON format in api_data.', 1;\n    END;\nEND;"
 						}
 					],
 					"scriptBlockExecutionTimeout": "02:00:00"
@@ -80,7 +80,7 @@
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"storedProcedureName": "[dbo].[sp_transform_usd_to_eur8]",
+					"storedProcedureName": "[dbo].[sp_transform_usd_to_eur0]",
 					"storedProcedureParameters": {
 						"api_data": {
 							"value": "@variables('apijsondata')",
