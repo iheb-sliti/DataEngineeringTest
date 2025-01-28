@@ -51,7 +51,7 @@
 				}
 			},
 			{
-				"name": "Script1",
+				"name": "exchange rates view",
 				"type": "Script",
 				"dependsOn": [
 					{
@@ -75,6 +75,39 @@
 				],
 				"policy": {
 					"timeout": "0.12:00:00",
+					"retry": 2,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "AzureSqlDatabase1",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": "CREATE PROCEDURE dbo.CreateExchangeRatesView AS\nBEGIN\n    IF OBJECT_ID('dbo.exchange_rates', 'V') IS NOT NULL\n    BEGIN\n        DROP VIEW dbo.exchange_rates;\n    END;\n\n    CREATE VIEW dbo.exchange_rates AS\n    SELECT\n        usd.upload_dt AS collection_dt_timestamp,\n        'USD' AS base,\n        [key] AS currency,  -- Enclose 'key' in square brackets to avoid keyword conflict\n        CAST(value AS NUMERIC(10, 4)) AS rate,\n        CASE\n            WHEN h.event_date IS NOT NULL THEN h.holiday_description\n            ELSE NULL\n        END AS is_holiday\n    FROM\n        source_data_USD usd\n        LEFT JOIN be_holidays h ON h.event_date = CAST(usd.upload_dt AS DATE)\n\n    UNION ALL\n\n    SELECT\n        eur.upload_dt AS collection_dt_timestamp,\n        'EUR' AS base,\n        eur.currency,\n        eur.rate,\n        CASE\n            WHEN h.event_date IS NOT NULL THEN h.holiday_description\n            ELSE NULL\n        END AS is_holiday\n    FROM\n        source_data_EUR eur\n        LEFT JOIN be_holidays h ON h.event_date = CAST(eur.upload_dt AS DATE);\nEND;\n"
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			},
+			{
+				"name": "Call Stored procedure rates view",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "exchange rates view",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
 					"retry": 0,
 					"retryIntervalInSeconds": 30,
 					"secureOutput": false,
@@ -82,8 +115,11 @@
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"scripts": [],
-					"scriptBlockExecutionTimeout": "02:00:00"
+					"storedProcedureName": "dbo.CreateExchangeRatesView"
+				},
+				"linkedServiceName": {
+					"referenceName": "AzureSqlDatabase1",
+					"type": "LinkedServiceReference"
 				}
 			}
 		],

@@ -5,6 +5,8 @@
 			{
 				"name": "create stored procedure to eur table",
 				"type": "Script",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "clean json data",
