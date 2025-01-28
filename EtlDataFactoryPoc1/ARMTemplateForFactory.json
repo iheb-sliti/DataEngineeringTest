@@ -49,6 +49,8 @@
 					{
 						"name": "create stored procedure to eur table",
 						"type": "Script",
+						"state": "Inactive",
+						"onInactiveMarkAs": "Succeeded",
 						"dependsOn": [
 							{
 								"activity": "clean json data",
@@ -132,7 +134,10 @@
 									"type": "String"
 								},
 								"upload_dt": {
-									"value": "@activity('Lookup1').output.firstRow.upload_dt",
+									"value": {
+										"value": "@activity('Get USD rates data').output.firstRow.upload_dt",
+										"type": "Expression"
+									},
 									"type": "Datetime"
 								}
 							}
@@ -827,6 +832,180 @@
 				}
 			},
 			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ExchangeRatesView')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Holiday Be pipeline",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "HolidayPipeline",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "UsdRates Pipeline",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "USD_Rates",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "EurRates Pipeline",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "EUR_Rates",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "exchange rates view",
+						"type": "Script",
+						"state": "Inactive",
+						"onInactiveMarkAs": "Succeeded",
+						"dependsOn": [
+							{
+								"activity": "Holiday Be pipeline",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "UsdRates Pipeline",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "EurRates Pipeline",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 2,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"linkedServiceName": {
+							"referenceName": "AzureSqlDatabase1",
+							"type": "LinkedServiceReference"
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "Query",
+									"text": "CREATE PROCEDURE dbo.CreateExchangeRatesView9 AS\nBEGIN\n    -- Check if the view exists, and if so, drop it\n    IF OBJECT_ID('dbo.exchange_rates', 'V') IS NOT NULL\n    BEGIN\n        DROP VIEW dbo.exchange_rates;\n    END;\n\n    \n    DECLARE @sql NVARCHAR(MAX);\n\n    SET @sql = '\n    CREATE VIEW dbo.exchange_rates AS\n    SELECT \n        usd.upload_dt AS collection_dt_timestamp,\n        ''USD'' AS base,\n        j.[key] COLLATE Latin1_General_BIN2 AS currency,\n        CASE \n            WHEN j.[key] = ''USD'' THEN 1.0000\n            ELSE ROUND(CAST(j.[value] AS FLOAT), 4) \n        END AS rate,\n        CASE\n            WHEN h.event_date IS NOT NULL THEN h.holiday_description\n            ELSE NULL\n        END AS is_holiday\n    FROM \n        source_data_USD usd\n        CROSS APPLY OPENJSON(usd.api_data) AS j\n        LEFT JOIN be_holidays h \n            ON h.event_date = CAST(usd.upload_dt AS DATE)\n\n    UNION ALL\n\n    SELECT\n        eur.upload_dt AS collection_dt_timestamp,\n        ''EUR'' AS base,\n        eur.currency COLLATE Latin1_General_BIN2 AS currency,\n        eur.rate,\n        CASE\n            WHEN h.event_date IS NOT NULL THEN h.holiday_description\n            ELSE NULL\n        END AS is_holiday\n    FROM\n        source_data_EUR eur\n        LEFT JOIN be_holidays h \n            ON h.event_date = CAST(eur.upload_dt AS DATE); ';\n\n    EXEC sp_executesql @sql;  \nEND;\n"
+								}
+							],
+							"scriptBlockExecutionTimeout": "02:00:00"
+						}
+					},
+					{
+						"name": "Call Stored procedure rates view",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "exchange rates view",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "dbo.CreateExchangeRatesView9"
+						},
+						"linkedServiceName": {
+							"referenceName": "AzureSqlDatabase1",
+							"type": "LinkedServiceReference"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/HolidayPipeline')]",
+				"[concat(variables('factoryId'), '/pipelines/USD_Rates')]",
+				"[concat(variables('factoryId'), '/pipelines/EUR_Rates')]",
+				"[concat(variables('factoryId'), '/linkedServices/AzureSqlDatabase1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/trigger1')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Started",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "ExchangeRatesView",
+							"type": "PipelineReference"
+						},
+						"parameters": {}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Hour",
+						"interval": 5,
+						"startTime": "2025-01-28T13:18:00",
+						"timeZone": "W. Central Africa Standard Time"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/ExchangeRatesView')]"
+			]
 		}
 	]
 }
